@@ -1,0 +1,5 @@
+# REPLACE https://www.tabjewellers.com with your live domain
+User-agent: *
+Allow: /
+
+Sitemap: https://www.tabjewellers.com/sitemap.xml
