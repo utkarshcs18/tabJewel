@@ -832,6 +832,7 @@ h1 em {
   display: flex;
   flex-direction: column;
   align-items: center;
+  -webkit-user-select: none;
   user-select: none;
 }
 
