@@ -848,10 +848,14 @@ h1 em {
 .hero__img {
   position: relative;
   z-index: 1;
-  width: min(600px, 100%);
+  width: 900px;
   margin-inline: auto;
+  margin-right: 20px;
   filter: drop-shadow(0 32px 48px rgba(28, 25, 23, 0.15));
   pointer-events: none;
+  border-radius: 5px;
+
+  transform: translateX(120px);
 }
 
 .collections-pin {
