@@ -51,21 +51,30 @@ html {
   overflow-x: clip;
   background-color: var(--bg);
   scroll-padding-top: var(--header-h);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--burnt-coral-soft-rgb), 0.55) transparent;
 }
 
-html::-webkit-scrollbar {
+@supports (scrollbar-width: thin) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--burnt-coral-soft-rgb), 0.55) transparent;
+  }
+}
+
+::-webkit-scrollbar {
   width: 8px;
 }
 
-html::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
 
-html::-webkit-scrollbar-thumb {
-  background-color: rgba(var(--burnt-coral-soft-rgb), 0.55);
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--burnt-coral-soft-rgb), 0.55);
   border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--burnt-coral-soft-rgb), 0.7);
 }
 
 body.page-enter {
@@ -96,7 +105,6 @@ html.lenis body {
 }
 
 html.lenis.lenis-smooth body {
-  -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
 }
 
