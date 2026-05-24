@@ -658,6 +658,7 @@ h1 em {
   width: 100%;
   height: var(--header-h);
   background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--nav-border);
   transform: translateZ(0);
