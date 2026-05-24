@@ -55,6 +55,19 @@ html {
   scrollbar-color: rgba(var(--burnt-coral-soft-rgb), 0.55) transparent;
 }
 
+html::-webkit-scrollbar {
+  width: 8px;
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--burnt-coral-soft-rgb), 0.55);
+  border-radius: 999px;
+}
+
 body.page-enter {
   opacity: 0;
 }
