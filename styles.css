@@ -855,6 +855,8 @@ h1 em {
   align-items: center;
   -webkit-user-select: none;
   user-select: none;
+  overflow: hidden; 
+  width: 100%;
 }
 
 .hero__glow {
@@ -869,16 +871,17 @@ h1 em {
 }
 
 .hero__img {
+.hero__img {
   position: relative;
   z-index: 1;
-  width: 900px;
+  width: clamp(280px, 80vw, 900px);
+  max-width: 100%;
   margin-inline: auto;
-  margin-right: 20px;
   filter: drop-shadow(0 32px 48px rgba(28, 25, 23, 0.15));
   pointer-events: none;
   border-radius: 5px;
-
   transform: translateX(120px);
+}
 }
 
 .collections-pin {
@@ -1717,6 +1720,19 @@ body.modal-open {
   .modal__panel {
     padding: 1.5rem;
   }
+
+  .hero__visual {
+    overflow: visible;
+    width: 100%;
+    max-width: 100%;
+  }
+
+.hero__img {
+    transform: translateX(0) !important;
+    width: clamp(260px, 75vw, 500px);
+    max-width: 100%;
+    margin-inline: auto;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1854,6 +1870,17 @@ body.modal-open {
     margin: 0.5rem;
     max-height: calc(100dvh - 1rem);
     overflow-y: auto;
+  }
+
+  .hero__visual {
+    width: 100%;
+    max-width: 100%;
+  }
+
+.hero__img {
+    transform: translateX(0) !important;
+    width: clamp(240px, 88vw, 360px);
+    max-width: 100%;
   }
 
 }
