@@ -33,8 +33,8 @@
   const NAV_SECTION_IDS = ["hero", "collections", "about", "visit", "contact"];
   let currentNavSection = "";
 
-  const scrollEaseOut = (t) => 1 - Math.pow(1 - t, 5);
-  const ANCHOR_SCROLL_DURATION = 1.55;
+  const scrollEaseOut = (t) => 1 - Math.pow(1 - t, 6);
+  const ANCHOR_SCROLL_DURATION = 1.75;
   const NAV_PROBE_OFFSET = 72;
 
   function debounce(fn, wait) {
@@ -53,6 +53,10 @@
 
   function getScrollY() {
     return lenis ? lenis.scroll : window.scrollY;
+  }
+
+  function getViewportHeight() {
+    return Math.round(window.visualViewport?.height ?? window.innerHeight);
   }
 
   function unlockBodyScroll() {
@@ -83,11 +87,23 @@
     if (splashSafetyId) window.clearTimeout(splashSafetyId);
 
     clearTitleFlight();
-    splash?.setAttribute("aria-hidden", "true");
-    splash?.remove();
 
     document.body.classList.remove("splash-active", "splash-brand-flying");
     document.body.classList.add("splash-done");
+    void document.body.offsetHeight;
+
+    const removeSplashOverlay = () => {
+      splash?.setAttribute("aria-hidden", "true");
+      splash?.remove();
+    };
+
+    if (prefersReducedMotion) {
+      removeSplashOverlay();
+    } else {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(removeSplashOverlay);
+      });
+    }
 
     requestAnimationFrame(() => {
       unlockBodyScroll();
@@ -120,7 +136,7 @@
   }
 
   function bindHashLinks() {
-    if (hashLinksBound || !lenis) return;
+    if (hashLinksBound) return;
     hashLinksBound = true;
 
     document.querySelectorAll('a[href^="#"]').forEach((link) => {
@@ -155,20 +171,19 @@
     if (lenis || prefersReducedMotion || typeof Lenis === "undefined") return;
 
     lenis = new Lenis({
-      lerp: 0.12,
-      duration: 1.2,
+      lerp: 0.055,
+      duration: 1.65,
       easing: scrollEaseOut,
       smoothWheel: true,
-      syncTouch: false,
-      touchMultiplier: 1,
-      wheelMultiplier: 1,
+      syncTouch: true,
+      touchMultiplier: 0.95,
+      wheelMultiplier: 0.88,
       infinite: false,
       autoRaf: false,
     });
 
     lenis.stop();
     startScrollLoop();
-    bindHashLinks();
   }
 
   function initScrollReveals() {
@@ -211,11 +226,12 @@
       lenis.start();
       lenis.scrollTo(0, { immediate: true });
     }
-    onCollectionsScroll();
+    updateCollectionsLayout();
     updateNavSection();
   }
 
   initLenis();
+  bindHashLinks();
 
   function pauseSmoothScroll() {
     lenis?.stop();
@@ -325,8 +341,9 @@
       console.error("Splash animation error:", err);
     }
 
+    document.body.classList.remove("splash-active", "splash-brand-flying");
+    document.body.classList.add("splash-done");
     splash.classList.add("splash--exit");
-    document.body.classList.remove("splash-active");
     window.setTimeout(finishSplash, prefersReducedMotion ? 350 : SPLASH_FADE_MS);
   }
 
@@ -363,14 +380,18 @@
       const visitTop = visitEl?.getBoundingClientRect().top ?? Infinity;
       const aboutTop = aboutEl?.getBoundingClientRect().top ?? Infinity;
       const contactTop = contactEl?.getBoundingClientRect().top ?? Infinity;
-      const pinTop = pinSection?.getBoundingClientRect().top ?? Infinity;
-      const pastPin = Boolean(pinSection && pinScrollable > 0 && pinTop <= -pinScrollable);
+      const pinRect = pinSection?.getBoundingClientRect();
+      const pinTop = pinRect?.top ?? Infinity;
+      const pinBottom = pinRect?.bottom ?? Infinity;
+      const headerH = getHeaderOffset();
+      const inCollections = Boolean(pinSection && pinTop <= line && pinBottom > line);
+      const pastPin = Boolean(pinSection && pinBottom <= headerH);
 
       if (visitTop <= line) {
         active = contactTop <= line ? "contact" : "visit";
       } else if (aboutTop <= line) {
         active = "about";
-      } else if (pinSection && pinTop <= line && !pastPin) {
+      } else if (inCollections && !pastPin) {
         active = "collections";
       } else if (pastPin) {
         active = "about";
@@ -408,13 +429,18 @@
   });
 
   const pinSection = document.querySelector(".collections-pin");
+  const collectionsHost = document.getElementById("collectionsHost");
+  const collectionsSticky = document.getElementById("collectionsSticky");
+  const collectionsPinScroll = document.getElementById("collectionsPinScroll");
   const collectionsViewport = document.querySelector(".collections-viewport");
   const track = document.getElementById("collectionsTrack");
   const progressBar = document.getElementById("collectionsProgress");
 
   let maxScroll = 0;
   let pinScrollable = 1;
-  let collectionsNear = false;
+  let pinFixed = false;
+  let panelHeight = 0;
+  let lastScrollY = 0;
 
   function measureCollectionsScroll() {
     if (!track || !collectionsViewport) return 0;
@@ -432,16 +458,66 @@
     const scrollNeeded = lastCard.getBoundingClientRect().right - targetRight;
     track.style.transform = prevTransform;
 
-    return Math.max(0, scrollNeeded);
+    return Math.max(0, Math.ceil(scrollNeeded));
+  }
+
+  function setCollectionsFixed(fixed) {
+    if (!collectionsSticky || fixed === pinFixed) return;
+
+    pinFixed = fixed;
+    collectionsSticky.classList.toggle("is-fixed", fixed);
+
+    if (!collectionsHost) return;
+
+    if (fixed) {
+      requestAnimationFrame(() => {
+        panelHeight = collectionsSticky.offsetHeight;
+        collectionsHost.classList.add("is-holding");
+        collectionsHost.style.height = `${panelHeight}px`;
+        collectionsHost.style.removeProperty("minHeight");
+        collectionsHost.style.removeProperty("overflow");
+      });
+      return;
+    }
+
+    collectionsHost.classList.remove("is-holding");
+    collectionsHost.style.removeProperty("height");
+    collectionsHost.style.removeProperty("minHeight");
+    collectionsHost.style.removeProperty("overflow");
+  }
+
+  function releaseCollectionsPin() {
+    setCollectionsFixed(false);
+    if (!collectionsHost) return;
+    collectionsHost.style.height = "0";
+    collectionsHost.style.minHeight = "0";
+    collectionsHost.style.overflow = "hidden";
+  }
+
+  function restoreCollectionsHost() {
+    if (!collectionsHost) return;
+    collectionsHost.style.removeProperty("height");
+    collectionsHost.style.removeProperty("minHeight");
+    collectionsHost.style.removeProperty("overflow");
+    collectionsHost.classList.remove("is-holding");
   }
 
   function updateCollectionsLayout() {
-    if (!pinSection || !track) return;
+    if (!pinSection || !track || !collectionsSticky) return;
+
+    setCollectionsFixed(false);
+    restoreCollectionsHost();
+    track.style.transform = "translate3d(0, 0, 0)";
 
     maxScroll = measureCollectionsScroll();
-    const scrollDistance = Math.max(maxScroll, 1);
-    pinSection.style.height = `${scrollDistance + window.innerHeight}px`;
-    pinScrollable = Math.max(1, pinSection.offsetHeight - window.innerHeight);
+    pinScrollable = Math.max(maxScroll, 1);
+    panelHeight = collectionsSticky.offsetHeight;
+
+    pinSection.style.removeProperty("height");
+    if (collectionsPinScroll) {
+      collectionsPinScroll.style.height = `${pinScrollable}px`;
+    }
+
     lastCollectionsProgress = -1;
     onCollectionsScroll();
     updateNavSection();
@@ -449,24 +525,46 @@
 
   function applyCollectionsProgress(progress) {
     if (!track) return;
-    const x = progress * maxScroll;
-    track.style.transform = `translate3d(${-x}px, 0, 0)`;
-    if (progressBar) {
-      progressBar.style.width = `${progress * 100}%`;
-    }
+    track.style.transform = `translate3d(${-progress * maxScroll}px, 0, 0)`;
+    if (progressBar) progressBar.style.width = `${progress * 100}%`;
   }
 
   onCollectionsScroll = function onCollectionsScrollHandler() {
-    if (!collectionsNear || !pinSection || !track || maxScroll <= 0) return;
+    if (!pinSection || !track || !collectionsSticky) return;
+    if (maxScroll <= 0) return;
+
+    const headerH = getHeaderOffset();
+    const vh = getViewportHeight();
+    const scrollY = getScrollY();
+    lastScrollY = scrollY;
 
     const rect = pinSection.getBoundingClientRect();
-    if (rect.bottom < 0 || rect.top > window.innerHeight) return;
 
-    let progress = Math.min(1, Math.max(0, -rect.top / pinScrollable));
-    if (progress > 0.992) progress = 1;
+    if (rect.bottom < headerH || rect.top > vh + pinScrollable) {
+      setCollectionsFixed(false);
+      return;
+    }
+
+    let progress = (headerH - rect.top) / pinScrollable;
+    progress = Math.min(1, Math.max(0, progress));
+
+    const shouldFix = rect.top <= headerH && rect.bottom > headerH;
+    setCollectionsFixed(shouldFix);
+
+    if (progress < 0.85 && collectionsHost?.style.height === "0px") {
+      restoreCollectionsHost();
+    }
+
+    if (progress >= 1) {
+      applyCollectionsProgress(1);
+      lastCollectionsProgress = 1;
+      releaseCollectionsPin();
+      return;
+    }
 
     const delta = Math.abs(progress - lastCollectionsProgress);
-    if (delta < 0.0008 && progress > 0.01 && progress < 0.99) return;
+    if (delta < 0.0004 && progress > 0.02 && progress < 0.98) return;
+
     lastCollectionsProgress = progress;
     applyCollectionsProgress(progress);
   };
@@ -477,6 +575,7 @@
   }, 150);
 
   window.addEventListener("resize", onResizeLayout);
+  window.visualViewport?.addEventListener("resize", onResizeLayout);
 
   if (!lenis) {
     window.addEventListener(
@@ -487,18 +586,6 @@
       },
       { passive: true }
     );
-  }
-
-  if (pinSection && typeof IntersectionObserver !== "undefined") {
-    new IntersectionObserver(
-      ([entry]) => {
-        collectionsNear = entry.isIntersecting;
-        if (collectionsNear) onCollectionsScroll();
-      },
-      { root: null, rootMargin: "120% 0px", threshold: 0 }
-    ).observe(pinSection);
-  } else {
-    collectionsNear = true;
   }
 
   updateCollectionsLayout();
